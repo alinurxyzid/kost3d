@@ -27,7 +27,7 @@ Konfigurasi Firebase ada di `app.js` (proyek `pintuiot`).
 
 - `index.html` — HUD + kontainer scene
 - `style.css` — gaya glass HUD, responsif mobile
-- `room3d.js` — kamar kost Three.js (pintu polos berulir kayu bertuliskan **KOST ALI**, AC di atas pintu dengan display suhu yang mengikuti sensor, bingkai `foto-alii.jpg` di tembok samping pintu, lampu, jendela, tempat tidur, meja, karpet, tanaman, debu halus)
+- `room3d.js` — kamar kost Three.js (pintu polos berulir kayu bertuliskan **KOST ALI**, AC di atas pintu dengan display suhu yang mengikuti sensor, bingkai `foto-alii.jpg` di tembok samping pintu, lemari baju, lampu, jendela, tempat tidur, meja, kursi menghadap laptop, karpet, tanaman)
 - `foto-alii-data.js` — foto dinding dalam bentuk data URL (anti-CORS)
 - `app.js` — Firebase realtime, jam, dan logika unlock
 - `README.md` — ini

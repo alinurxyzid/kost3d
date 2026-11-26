@@ -50,8 +50,8 @@
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x121722);
-    scene.fog = new THREE.Fog(0x121722, 9, 24);
+    scene.background = new THREE.Color(0x1b2331);
+    scene.fog = new THREE.Fog(0x1b2331, 9, 24);
 
     const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 80);
 
@@ -117,10 +117,7 @@
       g.addColorStop(0, '#1b2a55'); g.addColorStop(.42, '#6a5a86');
       g.addColorStop(.72, '#d68668'); g.addColorStop(1, '#f6cf96');
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-      for (let i = 0; i < 46; i++) {
-        ctx.fillStyle = 'rgba(255,244,214,' + (.25 + Math.random() * .55) + ')';
-        ctx.fillRect(Math.random() * w, Math.random() * h * .42, 1.4, 1.4);
-      }
+      // Tanpa titik putih (kesan salju) pada langit jendela.
       ctx.fillStyle = 'rgba(35,30,45,.55)';
       ctx.fillRect(0, h * .74, w, 4);
     });
@@ -237,8 +234,9 @@
     led.position.set(-2.4, 2.5, 3.82);
     scene.add(led);
 
-    // Koridor di balik pintu + cahaya rembes saat pintu terbuka
-    plane(3.4, 2.8, new THREE.MeshBasicMaterial({ color: 0x202638, side: THREE.DoubleSide }), -2.4, 1.45, 4.7);
+    // Koridor di balik pintu + cahaya rembes saat pintu terbuka.
+    // Ikut disembunyikan saat zoom out supaya tidak tampak sebagai tembok hitam.
+    shell.push(plane(3.4, 2.8, new THREE.MeshBasicMaterial({ color: 0x313a4c, side: THREE.DoubleSide }), -2.4, 1.45, 4.7));
     const corridorLight = new THREE.PointLight(0xffd7a0, .04, 6, 2);
     corridorLight.position.set(-2.4, 1.85, 4.35);
     scene.add(corridorLight);
@@ -297,12 +295,31 @@
     box(.5, .005, .3, new THREE.MeshBasicMaterial({ color: 0x35507a }), 3.25, 1.04, -2.555, scene, -.12);
     cyl(.06, .06, .02, M.dark, 3.25, .86, -2.22);
 
-    // Kursi
-    box(.56, .07, .56, M.bed, 3.15, .48, -1.25);
-    box(.56, .6, .07, M.bed, 3.15, .82, -1.53);
-    [[2.92, -1.48], [3.38, -1.48], [2.92, -1.02], [3.38, -1.02]].forEach((p) => {
-      cyl(.025, .025, .45, M.dark, p[0], .23, p[1]);
+    // Kursi — dudukan menghadap meja (arah -z), sandaran di belakang (arah +z).
+    const chair = new THREE.Group();
+    chair.position.set(3.15, 0, -1.25);
+    chair.rotation.y = 0;
+    scene.add(chair);
+    box(.56, .07, .56, M.bed, 0, .48, 0, chair);          // dudukan
+    box(.56, .6, .07, M.bed, 0, .82, .28, chair);         // sandaran (menjauhi meja)
+    [[-.23, -.23], [.23, -.23], [-.23, .23], [.23, .23]].forEach((p) => {
+      cyl(.025, .025, .45, M.dark, p[0], .23, p[1], chair);
     });
+
+    // Lemari baju di tembok depan, sebelah kanan foto.
+    const wardrobeWood = new THREE.MeshStandardMaterial({ color: 0x765032, roughness: .62 });
+    const wardrobeEdge = new THREE.MeshStandardMaterial({ color: 0x4b301b, roughness: .7 });
+    const wardrobeMirror = new THREE.MeshStandardMaterial({ color: 0xa8bfcf, metalness: .72, roughness: .16 });
+    const wx = 2.45, wz = 3.62;
+    box(1.34, 2.12, .56, wardrobeWood, wx, 1.10, wz);       // badan lemari
+    box(1.42, .08, .64, wardrobeEdge, wx, 2.20, wz);        // atap
+    box(1.34, .08, .60, wardrobeEdge, wx, .07, wz);         // alas
+    // Dua pintu menghadap ke dalam kamar (-z)
+    box(.64, 1.94, .025, wardrobeWood, wx - .33, 1.10, wz - .29);
+    box(.64, 1.94, .025, wardrobeWood, wx + .33, 1.10, wz - .29);
+    box(.34, .60, .014, wardrobeMirror, wx + .33, 1.52, wz - .309); // cermin
+    cyl(.018, .018, .03, M.brass, wx - .055, 1.10, wz - .315, scene, Math.PI / 2);
+    cyl(.018, .018, .03, M.brass, wx + .055, 1.10, wz - .315, scene, Math.PI / 2);
 
     // Karpet
     plane(3.1, 2.1, M.rug, .1, .014, .95, scene, -Math.PI / 2);
@@ -386,19 +403,6 @@
     sun.shadow.camera.top = 7; sun.shadow.camera.bottom = -7;
     sun.shadow.bias = -.0005;
     scene.add(sun, sun.target);
-
-    /* ---------- Debu halus di berkas cahaya ---------- */
-    const dustPos = [];
-    for (let i = 0; i < 240; i++) {
-      dustPos.push((Math.random() - .5) * 8, .25 + Math.random() * 2.6, (Math.random() - .5) * 7);
-    }
-    const dustGeo = new THREE.BufferGeometry();
-    dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
-    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-      color: 0xffe4b8, size: .022, transparent: true, opacity: .55,
-      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
-    }));
-    scene.add(dust);
 
     /* ---------- Kontrol lihat-around ----------
        - Drag 1 jari / mouse: putar bebas 360° (horizontal & vertikal).
@@ -516,9 +520,9 @@
 
       // Saat kamera berada di luar ruangan, dinding & plafon disembunyikan
       // agar tidak menghalangi pandangan (putaran 360° bebas).
-      const outside = camera.position.x < -5 || camera.position.x > 5 ||
-                      camera.position.z < -4 || camera.position.z > 4 ||
-                      camera.position.y > 3.15;
+      const outside = camera.position.x < -5.2 || camera.position.x > 5.2 ||
+                      camera.position.z < -4.2 || camera.position.z > 4.2 ||
+                      camera.position.y > 3.25;
       shell.forEach((m) => { m.visible = !outside; });
 
       // Pintu membuka/menutup halus.
@@ -528,15 +532,6 @@
       corridorNow += (corridorTarget + pulse - corridorNow) * Math.min(1, dt * 4);
       corridorLight.intensity = corridorNow;
       pulse *= Math.max(0, 1 - dt * 2.4);
-
-      // Debu melayang.
-      const dp = dustGeo.attributes.position;
-      for (let i = 0; i < dp.count; i++) {
-        let y = dp.getY(i) + dt * (.035 + (i % 5) * .006);
-        if (y > 2.9) y = .25;
-        dp.setY(i, y);
-      }
-      dp.needsUpdate = true;
 
       renderer.render(scene, camera);
     }
