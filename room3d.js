@@ -194,16 +194,19 @@
     }
 
     /* ---------- Ruangan 10 x 8 x 3.2 ---------- */
-    plane(10, 8, M.floor, 0, 0, 0, scene, -Math.PI / 2);
-    plane(10, 8, M.ceiling, 0, 3.2, 0, scene, Math.PI / 2);
-    box(10, 3.2, .12, M.wall, 0, 1.6, -4);          // dinding belakang
-    box(.12, 3.2, 8, M.wall, -5, 1.6, 0);            // dinding kiri
-    box(.12, 3.2, 8, M.wall, 5, 1.6, 0);             // dinding kanan
+    // Dinding & plafon dikumpulkan supaya bisa disembunyikan otomatis
+    // saat kamera digeser keluar ruangan (putaran 360° dari luar).
+    const shell = [];
+    plane(10, 8, M.floor, 0, 0, 0, scene, -Math.PI / 2); // lantai selalu tampil
+    shell.push(plane(10, 8, M.ceiling, 0, 3.2, 0, scene, Math.PI / 2));
+    shell.push(box(10, 3.2, .12, M.wall, 0, 1.6, -4));          // dinding belakang
+    shell.push(box(.12, 3.2, 8, M.wall, -5, 1.6, 0));           // dinding kiri
+    shell.push(box(.12, 3.2, 8, M.wall, 5, 1.6, 0));            // dinding kanan
 
     // Dinding depan dengan lubang pintu (x -3.6 .. -1.2)
-    box(1.4, 3.2, .12, M.wall, -4.3, 1.6, 4);
-    box(6.2, 3.2, .12, M.wall, 1.9, 1.6, 4);
-    box(2.4, .9, .12, M.wall, -2.4, 2.75, 4);
+    shell.push(box(1.4, 3.2, .12, M.wall, -4.3, 1.6, 4));
+    shell.push(box(6.2, 3.2, .12, M.wall, 1.9, 1.6, 4));
+    shell.push(box(2.4, .9, .12, M.wall, -2.4, 2.75, 4));
 
     // Kusen pintu
     box(.12, 2.38, .2, M.trim, -3.62, 1.19, 3.91);
@@ -397,33 +400,66 @@
     }));
     scene.add(dust);
 
-    /* ---------- Kontrol lihat-around (drag + scroll) ---------- */
+    /* ---------- Kontrol lihat-around ----------
+       - Drag 1 jari / mouse: putar bebas 360° (horizontal & vertikal).
+       - Pinch 2 jari / scroll: zoom in-out.
+       - Semua gerakan dihaluskan (damping) di loop animasi. */
     const target = new THREE.Vector3(-1.35, 1.34, 2.75);
     const orbit = { theta: 2.18, phi: 1.45, radius: 4.25 };
     const smooth = { theta: orbit.theta, phi: orbit.phi, radius: orbit.radius };
-    let dragging = false, lastX = 0, lastY = 0, lastInteraction = performance.now();
-    let autoDir = 1;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const pointers = new Map();
+    let pinchDist = 0, lastX = 0, lastY = 0, lastInteraction = performance.now();
 
     function note() { lastInteraction = performance.now(); }
+    function center() {
+      let x = 0, y = 0;
+      pointers.forEach((p) => { x += p.x; y += p.y; });
+      return { x: x / (pointers.size || 1), y: y / (pointers.size || 1) };
+    }
+    function spread() {
+      if (pointers.size < 2) return 0;
+      const p = Array.from(pointers.values());
+      return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    }
 
     renderer.domElement.addEventListener('pointerdown', (e) => {
-      dragging = true; lastX = e.clientX; lastY = e.clientY; note();
       renderer.domElement.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const c = center();
+      lastX = c.x; lastY = c.y; pinchDist = spread(); note();
     });
+
     renderer.domElement.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      orbit.theta -= (e.clientX - lastX) * .0042;
-      orbit.phi -= (e.clientY - lastY) * .0036;
-      orbit.theta = Math.max(1.4, Math.min(3.6, orbit.theta));
-      orbit.phi = Math.max(.72, Math.min(1.72, orbit.phi));
-      lastX = e.clientX; lastY = e.clientY; note();
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const c = center(), d = spread();
+
+      if (pointers.size >= 2) {
+        // Pinch: makin jauh jari = makin dekat (zoom in).
+        if (pinchDist > 0 && d > 0) {
+          orbit.radius = clamp(orbit.radius * (pinchDist / d), 1.6, 9);
+        }
+        pinchDist = d;
+      } else {
+        // Putar bebas; phi dibatasi sedikit agar kamera tidak terbalik.
+        orbit.theta -= (c.x - lastX) * .006;
+        orbit.phi = clamp(orbit.phi - (c.y - lastY) * .005, .18, Math.PI - .18);
+      }
+      lastX = c.x; lastY = c.y; note();
     });
-    const stopDrag = () => { dragging = false; note(); };
-    renderer.domElement.addEventListener('pointerup', stopDrag);
-    renderer.domElement.addEventListener('pointercancel', stopDrag);
+
+    function endPointer(e) {
+      pointers.delete(e.pointerId);
+      const c = center();
+      lastX = c.x; lastY = c.y; pinchDist = spread(); note();
+    }
+    renderer.domElement.addEventListener('pointerup', endPointer);
+    renderer.domElement.addEventListener('pointercancel', endPointer);
+
     renderer.domElement.addEventListener('wheel', (e) => {
       e.preventDefault();
-      orbit.radius = Math.max(2.6, Math.min(4.6, orbit.radius + e.deltaY * .0025));
+      orbit.radius = clamp(orbit.radius + e.deltaY * .0035, 1.6, 9);
       note();
     }, { passive: false });
 
@@ -462,15 +498,11 @@
       const dt = Math.min((now - prev) / 1000, .05);
       prev = now;
 
-      // Putaran pelan otomatis setelah 9 detik tidak disentuh (bolak-balik
-      // di dalam batas agar kamera tidak menembus dinding).
-      if (!dragging && now - lastInteraction > 9000) {
-        orbit.theta += .055 * dt * autoDir;
-        if (orbit.theta >= 3.6) { orbit.theta = 3.6; autoDir = -1; }
-        if (orbit.theta <= 1.4) { orbit.theta = 1.4; autoDir = 1; }
-      }
+      // Putaran pelan otomatis setelah 9 detik tidak disentuh (putaran penuh).
+      if (pointers.size === 0 && now - lastInteraction > 9000) orbit.theta += .07 * dt;
 
-      const k = Math.min(1, dt * 6);
+      // Damping lebih lembut supaya geseran terasa smooth.
+      const k = Math.min(1, dt * 4.5);
       smooth.theta += (orbit.theta - smooth.theta) * k;
       smooth.phi += (orbit.phi - smooth.phi) * k;
       smooth.radius += (orbit.radius - smooth.radius) * k;
@@ -481,6 +513,13 @@
         target.z + smooth.radius * Math.sin(smooth.phi) * Math.cos(smooth.theta)
       );
       camera.lookAt(target);
+
+      // Saat kamera berada di luar ruangan, dinding & plafon disembunyikan
+      // agar tidak menghalangi pandangan (putaran 360° bebas).
+      const outside = camera.position.x < -5 || camera.position.x > 5 ||
+                      camera.position.z < -4 || camera.position.z > 4 ||
+                      camera.position.y > 3.15;
+      shell.forEach((m) => { m.visible = !outside; });
 
       // Pintu membuka/menutup halus.
       doorAngle += (doorTarget - doorAngle) * Math.min(1, dt * 3.4);

@@ -36,7 +36,7 @@ Konfigurasi Firebase ada di `app.js` (proyek `pintuiot`).
 
 - **Online / Firebase Hosting:** upload seluruh isi folder ke hosting, lalu buka `index.html` (atau di-stage misal ke `/room`).
 - **Lokal untuk preview:** buka `index.html` langsung di browser. Firebase & Three.js dimuat dari CDN, jadi tetap butuh internet.
-- **Interaksi 3D:** geser (drag) untuk keliling ruangan, scroll untuk zoom. Setelah 9 detik tidak disentuh, kamera berputar pelan otomatis.
+- **Interaksi 3D:** geser satu jari/mouse untuk berputar **360° bebas** (horizontal & vertikal, dengan damping halus), **pinch dua jari** atau scroll untuk zoom in/out (jarak 1.6–9). Dinding & plafon otomatis hilang kalau kamera berada di luar ruangan. Setelah 9 detik tidak disentuh, kamera berputar pelan otomatis.
 - **Tombol panah** di kiri atas menyembunyikan/menampilkan panel jam, suhu, kelembapan, dan status pintu. Saat diminimalkan, tombol unlock berubah jadi tombol kecil (FAB) sehingga scene 3D lebih luas. Di layar HP (`≤ 820px`) mode minimized menjadi default; pilihan tersimpan di `localStorage`.
 
 ## Catatan
